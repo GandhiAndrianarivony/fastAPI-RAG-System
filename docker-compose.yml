@@ -1,0 +1,44 @@
+services:
+  qa_rag_api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: dericsolen/qa_rag:1.0
+    container_name: qa_rag_web
+    environment:
+      - TIKTOKEN_CACHE_DIR=/tmp/tiktoken_cache
+    volumes:
+      - ./src:/apps/src
+
+    ports:
+      - "4923:4923"
+    develop:
+      watch:
+        - action: rebuild
+          path: pyproject.toml
+
+    stdin_open: true
+    tty: true
+
+
+  ollama_qa:
+    image: ollama/ollama:0.6.6-rocm
+    container_name: ollama_qa
+    environment:
+      - DEBUG=true
+      - OLLAMA_MAX_LOADED_MODELS=3
+      - OLLAMA_MAX_QUEUE=1024
+      - OLLAMA_NUM_PARALLEL=3
+      - OLLAMA_FLASH_ATTENTION=1
+    ports:
+      - "11434:11434"
+    volumes:
+      - ollama:/root/.ollama
+      - ./ollama_configs.json:/root/.ollama/config.json
+    deploy:
+      resources:
+        limits:
+          memory: 8G  
+volumes:
+  ollama:
+    external: false

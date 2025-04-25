@@ -1,0 +1,6 @@
+{
+    "ggml": {
+      "backend": "cpu",  
+      "batch_size": 512
+    }
+  }
