@@ -31,9 +31,9 @@ async def lifespan(app: FastAPI):
 
         # Configure LLM settings
         logger.info("Configuring LLM settings...")
-        Settings.chunk_size = int(os.environ.get("CHUNK_SIZE", 512))
+        Settings.chunk_size = int(os.environ.get("CHUNK_SIZE", 256))
         text_splitter = SentenceSplitter(
-            chunk_size=int(os.environ.get("CHUNK_SIZE", 1000)),
+            chunk_size=Settings.chunk_size,
             chunk_overlap=int(os.environ.get("CHUNK_OVERLAP", 200)),
         )
         Settings.text_splitter = text_splitter
@@ -41,7 +41,6 @@ async def lifespan(app: FastAPI):
         # Initialize LLM provider
         provider_name = os.environ.get("PROVIDER", "Ollama").strip().lower()
         logger.info(f"Initializing {provider_name} provider...")
-
 
         # Create LLMEngine instance
         app.state.llm_engines = dict()

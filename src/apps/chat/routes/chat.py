@@ -2,6 +2,7 @@ import asyncio
 import tempfile
 import os
 import uuid
+import logging
 
 from fastapi import APIRouter, UploadFile, HTTPException, Request
 from fastapi.responses import StreamingResponse
@@ -23,10 +24,12 @@ async def generate(generator: CompletionResponseGen):
 
 @chat_router_v1.post("/chat")
 async def chat(request: Request, question: QASchema):
-    return {"keys": request.app.state.llm_engines.keys()}
+    logging.basicConfig(level=logging.INFO)
+    logger = logging.getLogger(__name__)
 
+    logger.info(f"Engine ID: {question.engine_id}")
     engine:  BaseQueryEngine = request.app.state.llm_engines.get(question.engine_id)
-
+    logger.info(f"Engine keys: {list(request.app.state.llm_engines.keys())}")
     if engine is None:
         raise HTTPException(status_code=404, detail="Engine not found")
 
@@ -72,10 +75,10 @@ async def upload_files_for_chat(request: Request, files: list[UploadFile]):
 
     query_engine = index.as_query_engine(llm=provider.llm, streaming=True)
     engine_id = uuid.uuid4()
-    request.app.state.llm_engines[engine_id] = query_engine
+    request.app.state.llm_engines[engine_id.hex] = query_engine
 
     # TODO: StoStoreStoreStorere in cookies
-    return {"engine_id": engine_id}
+    return {"engine_id": engine_id.hex}
 
     # response = query_engine.query("Give me the definition of Fine number")
     # return StreamingResponse(
