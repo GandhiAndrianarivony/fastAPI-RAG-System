@@ -1,21 +1,18 @@
 import asyncio
+import tempfile
+import os
+import uuid
 
-from fastapi import APIRouter, UploadFile, HTTPException
+from fastapi import APIRouter, UploadFile, HTTPException, Request
 from fastapi.responses import StreamingResponse
 
 from llama_index.core.base.llms.types import CompletionResponseGen
+from llama_index.core import SimpleDirectoryReader, VectorStoreIndex
+from llama_index.core.base.base_query_engine import BaseQueryEngine
 
-from src.services.llms.providers import ProviderEnum, OllamaProvider
-from src.services.llms import registry
+from ..schemas import QASchema
 
-import nltk
-
-
-nltk.download("punkt")  # Required for sentence splitting
-nltk.download("stopwords")
-
-
-chat_router = APIRouter()
+chat_router_v1 = APIRouter(prefix="/v1", tags=["Chat (v1)"])
 
 
 async def generate(generator: CompletionResponseGen):
@@ -24,34 +21,29 @@ async def generate(generator: CompletionResponseGen):
         yield chunk
 
 
-@chat_router.get("/chat")
-async def chat():
-    fake_message = "Who is Nelson Mandela?"
-    fake_provider = ProviderEnum.OLLAMA
+@chat_router_v1.post("/chat")
+async def chat(request: Request, question: QASchema):
+    return {"keys": request.app.state.llm_engines.keys()}
 
-    provider = registry.get_provider(fake_provider)
-    response_generator = provider.stream_chat_response(fake_message)
+    engine:  BaseQueryEngine = request.app.state.llm_engines.get(question.engine_id)
 
-    return StreamingResponse(
-        generate(response_generator),
-        media_type="text/event-stream",
-    )
+    if engine is None:
+        raise HTTPException(status_code=404, detail="Engine not found")
+
+    else:
+        response = engine.query(question.query)
+
+        return StreamingResponse(
+            generate(response.response_gen),
+            media_type="text/event-stream",
+        )
 
 
-@chat_router.post("/files")
-async def upload_files_for_chat(files: list[UploadFile]):
-    import tempfile
-    import os
-    from llama_index.core import SimpleDirectoryReader, VectorStoreIndex
-    from llama_index.core import Settings
-    from llama_index.core.node_parser import SentenceSplitter
-
-    Settings.chunk_size = 512  # Instead of default 1024
-    text_splitter = SentenceSplitter(chunk_size=1000, chunk_overlap=200)
-    Settings.text_splitter = text_splitter
-
+@chat_router_v1.post("/files")
+async def upload_files_for_chat(request: Request, files: list[UploadFile]):
     document_content_types = {"application/pdf"}
 
+    provider = request.app.state.llm_provider
     for file in files:
         if not file.content_type:
             raise HTTPException(status_code=400, detail="File content type is required")
@@ -70,22 +62,25 @@ async def upload_files_for_chat(files: list[UploadFile]):
 
         docs = SimpleDirectoryReader(temp_dir).load_data()
 
-    provider = OllamaProvider()
-
     # TODO: Add Qdrant vector store
-
     index = VectorStoreIndex.from_documents(
         docs,
         # storage_context=storage_context,
-        # use_async=True,
-        embed_model=provider._get_embedding_model(),
+        embed_model=provider.embedding,
         show_progress=True,
-        transformations=[text_splitter],
     )
 
-    query_engine = index.as_query_engine(llm=provider._get_chat_model(), streaming=True)
-    response = query_engine.query("Give me the definition of Fine number")
+    query_engine = index.as_query_engine(llm=provider.llm, streaming=True)
+    engine_id = uuid.uuid4()
+    request.app.state.llm_engines[engine_id] = query_engine
 
-    return StreamingResponse(generate(response.response_gen), media_type="text/event-stream",)
+    # TODO: StoStoreStoreStorere in cookies
+    return {"engine_id": engine_id}
+
+    # response = query_engine.query("Give me the definition of Fine number")
+    # return StreamingResponse(
+    #     generate(response.response_gen),
+    #     media_type="text/event-stream",
+    # )
 
     # TODO: Process files

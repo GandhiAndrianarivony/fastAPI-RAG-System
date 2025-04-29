@@ -1,6 +1,7 @@
 from typing import Dict
 
-from .providers import OllamaProvider, AbstractProvider, ProviderEnum
+from .providers import OllamaProvider, AbstractProvider
+from .enum import ProviderEnum
 
 
 class ProviderRegistry:

@@ -14,7 +14,7 @@ temp_dir = "./test/data"
 
 docs = SimpleDirectoryReader(temp_dir).load_data()
 
-provider = OllamaProvider()
+provider = OllamaProvider(host="http://localhost:11434")
 
 # TODO: Add Qdrant vector store
 
