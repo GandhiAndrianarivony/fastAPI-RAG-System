@@ -1,14 +1,9 @@
 import logging
-import os
 from contextlib import asynccontextmanager
-
-import nltk
+from collections import defaultdict
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-
-from llama_index.core import Settings
-from llama_index.core.node_parser import SentenceSplitter
 
 from src.apps.healthcheck.routes import healthcheck_router_v1
 from src.apps.chat.routes.chat import chat_router_v1
@@ -24,29 +19,11 @@ async def lifespan(app: FastAPI):
     logger = logging.getLogger(__name__)
 
     try:
-        # Initialize NLP resources
-        logger.info("Initializing NLP resources...")
-        nltk.download("punkt", quiet=True)  # Required for sentence splitting
-        nltk.download("stopwords", quiet=True)
-
-        # Configure LLM settings
-        logger.info("Configuring LLM settings...")
-        Settings.chunk_size = int(os.environ.get("CHUNK_SIZE", 256))
-        text_splitter = SentenceSplitter(
-            chunk_size=Settings.chunk_size,
-            chunk_overlap=int(os.environ.get("CHUNK_OVERLAP", 200)),
-        )
-        Settings.text_splitter = text_splitter
-
-        # Initialize LLM provider
-        provider_name = os.environ.get("PROVIDER", "Ollama").strip().lower()
-        logger.info(f"Initializing {provider_name} provider...")
-
         # Create LLMEngine instance
-        app.state.llm_engines = dict()
-        app.state.llm_provider = OllamaProvider()
-
-        logger.info("LLMEngine initialized successfully")
+        app.state.rag = defaultdict(dict)
+        app.state.rag["default"] = {
+            "provider": OllamaProvider()
+        }
         yield
 
     except Exception as e:
@@ -55,8 +32,7 @@ async def lifespan(app: FastAPI):
     finally:
         # Cleanup resources if needed
         logger.info("Cleaning up LLM resources...")
-        # if hasattr(app.state, 'engine') and app.state.engine["query_engine"]:
-        #     await app.state.engine["query_engine"].aclose()
+
 
 
 def create_app():

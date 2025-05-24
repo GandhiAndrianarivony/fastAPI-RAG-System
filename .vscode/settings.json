@@ -15,5 +15,9 @@
     "python.testing.unittestEnabled": false,
     "python.testing.cwd": "${workspaceFolder}/tests",
     "python.testing.pytestPath": "${workspaceFolder}/.venv/bin/pytest",
-    "python.testing.autoTestDiscoverOnSaveEnabled": true
+    "python.testing.autoTestDiscoverOnSaveEnabled": true,
+    // cSpell:words
+    "cSpell.enabled": false,
+    "cSpell.language": "en"
+    
 }
